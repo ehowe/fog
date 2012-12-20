@@ -13,7 +13,7 @@ module Fog
 
         def all
           data = connection.get_organizations(organization_uri).body
-          load(data[:Organization])
+          load(data)
         end
 
         def get(uri)

@@ -13,15 +13,14 @@ module Fog
         identity :href
 
         def all
-          data = []
-          connection.get_organization(href).body[:Locations][:Location].each do |d| 
-            if d[:Environments][:Environment].is_a?(Array)
-              d[:Environments][:Environment].each { |e| data << e }
-            else
-              data << d[:Environments][:Environment]
+          environments = []
+          data = connection.get_organization(href).body["Items"].select { |i| i["Locations"] }
+          data.each do |item|
+            item["Locations"].each do |l|
+              l["Environments"].each { |e| environments << e }
             end
           end
-          load(data)
+          load(environments)
         end
 
         def get(uri)

@@ -316,6 +316,7 @@ module Fog
 
           # Set headers to an empty hash if none are set.
           headers = set_extra_headers_for(params) || set_extra_headers_for({})
+          headers.merge!("Accept" => "application/json")
 
           # Make the request
           options = {
@@ -324,22 +325,13 @@ module Fog
             :path    => params[:uri].path + "#{"?#{params[:uri].query}" if params[:uri].query}",
             :headers => headers
           }
+          require 'pp'; pp options
           unless params[:body].nil? || params[:body].empty?
             options.merge!({:body => params[:body]})
           end
           response = @connections[host_url].request(options)
+          response.body = Fog::JSON.decode(response.body)
 
-          # Parse the response body into a hash
-          unless response.body.empty?
-            if params[:parse]
-              document = Fog::ToHashDocument.new
-              parser = Nokogiri::XML::SAX::PushParser.new(document)
-              parser << response.body
-              parser.finish
-
-              response.body = document.body
-            end
-          end
           response
         end
 
@@ -352,8 +344,8 @@ module Fog
             'Date'           => Time.now.utc.strftime("%a, %d %b %Y %H:%M:%S GMT"),
           }.merge(params[:headers] || {})
           if params[:method]=="POST" || params[:method]=="PUT"
-            params[:headers].merge!({"Content-Type" => 'application/xml'}) unless params[:headers]['Content-Type']
-            params[:headers].merge!({"Accept" => 'application/xml'})
+            params[:headers].merge!({"Content-Type" => 'application/json'}) unless params[:headers]['Content-Type']
+            params[:headers].merge!({"Accept" => 'application/json'})
           end
           unless params[:body].nil? || params[:body].empty?
             params[:headers].merge!({"x-tmrk-contenthash" => "Sha256 #{Base64.encode64(Digest::SHA2.digest(params[:body].to_s)).chomp}"})
@@ -363,7 +355,8 @@ module Fog
           elsif @authentication_method == :cloud_api_auth
             signature = cloud_api_signature(params)
             params[:headers].merge!({
-              "x-tmrk-authorization" => %{CloudApi AccessKey="#{@access_key}" SignatureType="HmacSha256" Signature="#{signature}"}
+              "x-tmrk-authorization" => %{CloudApi AccessKey="#{@access_key}" SignatureType="HmacSha256" Signature="#{signature}"},
+              "Authorization" => %{CloudApi AccessKey="#{@access_key}" SignatureType="HmacSha256" Signature="#{signature}"}
             })
           end
           params[:headers]
