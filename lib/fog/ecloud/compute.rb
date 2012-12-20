@@ -325,7 +325,6 @@ module Fog
             :path    => params[:uri].path + "#{"?#{params[:uri].query}" if params[:uri].query}",
             :headers => headers
           }
-          require 'pp'; pp options
           unless params[:body].nil? || params[:body].empty?
             options.merge!({:body => params[:body]})
           end
