@@ -19,6 +19,10 @@ Shindo.tests("Fog::Compute[:#{provider}] | servers", "operations") do
     @server.wait_for { ready? } # server
   end
 
+  tests('#environment_has_no_rows').succeeds do
+    environment.rows.empty?
+  end
+
   @hwc = @server.hardware_configuration
   tests('#add_disk_to_server').succeeds do
     disk_count = @hwc.storage.is_a?(Hash) ? [@hwc.storage].count : @hwc.storage.count

@@ -121,12 +121,14 @@ module Fog
 
       class Mock
         def virtual_machine_create_from_template(template_uri, options)
-          #response => #<Excon::Response:0x007fa75c7071e0 @body="<Error message=\"The server could not be created because the name of VM is not valid.\" majorErrorCode=\"400\" minorErrorCode=\"InvalidName\"/>", @headers={"Cache-Control"=>"private", "Content-Type"=>"application/vnd.tmrk.cloud.error", "X-Responding-Host"=>"us01.services.enterprisecloud.terremark.com", "x-tmrk-currentuser"=>"/cloudapi/ecloud/admin/users/8274", "x-tmrk-token"=>"ecloud-0B36739F41C7-581C-4BDF-1FA1-504EF398-8F18B899C767442E-8274", "Date"=>"Thu, 29 Nov 2012 19:06:20 GMT", "Content-Length"=>"137"}, @status=400>
           options                      = validate_create_server_options(template_uri, options)
           server_id                    = Fog::Mock.random_numbers(7).to_i
+          row_id                       = Fog::Mock.random_numbers(6).to_i
+          group_id                     = Fog::Mock.random_numbers(6).to_i
           template_id, compute_pool_id = template_uri.match(/\/templates\/(\d+)\/computepools\/(\d+)$/).captures
           compute_pool                 = self.data[:compute_pools][compute_pool_id.to_i].dup
           environment                  = self.data[:environments][compute_pool[:environment_id]]
+          layout                       = self.data[:layouts][environment[:id]]
           networks                     = options[:network_uri]
           nics                         = networks.each_with_index.map do |network, i|
             {
@@ -192,6 +194,44 @@ module Fog
             :Links => { :Link => links },
           }
 
+          row = {
+            :id => row_id,
+            :name => options[:row],
+            :href => "/cloudapi/ecloud/layoutrows/#{row_id}",
+            :type => "application/vnd.tmrk.cloud.layoutRow",
+            :Links => {
+              :Link => [
+                Fog::Ecloud.keep(environment, :name, :href, :type)
+              ],
+            },
+            :Index => 0,
+            :Groups => {
+              :Group => [
+              ],
+            },
+            :environment_id => environment[:id],
+          }
+
+          group = {
+            :id => group_id,
+            :name => options[:group],
+            :href => "/cloudapi/ecloud/layoutgroups/#{group_id}",
+            :type => "application/vnd.tmrk.cloud.layoutGroup",
+            :Links => {
+              :Link => [
+                Fog::Ecloud.keep(row, :name, :href, :type),
+              ],
+            },
+            :VirtualMachines => {
+              :VirtualMachine => [
+                server,
+              ],
+            },
+            :row_id => row_id,
+          }
+          row[:Groups][:Group].push(group)
+          layout[:Rows][:Row].push(row)
+
           server.merge!(:OperatingSystem => options[:operating_system].merge(:type => "application/vnd.tmrk.cloud.operatingSystem")) if options[:operating_system]
 
           server_response = response(body: server)
@@ -199,6 +239,8 @@ module Fog
           server.merge!(:compute_pool_id => compute_pool[:id])
 
           self.data[:servers][server_id] = server
+          self.data[:rows][row_id]       = row
+          self.data[:groups][group_id]   = group
 
           server_response
         end
