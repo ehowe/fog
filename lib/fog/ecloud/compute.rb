@@ -328,6 +328,11 @@ module Fog
           unless params[:body].nil? || params[:body].empty?
             options.merge!({:body => params[:body]})
           end
+          puts <<EOF
+#{params[:method].upcase} #{host_url}#{options[:path]}
+#{params[:headers].map { |k,v| "#{k}: #{v}" }.join("\n") }
+#{params[:body] if params[:body] }
+EOF
           response = @connections[host_url].request(options)
           response.body = Fog::JSON.decode(response.body)
 
