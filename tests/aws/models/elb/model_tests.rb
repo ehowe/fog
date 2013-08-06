@@ -63,6 +63,7 @@ Shindo.tests('AWS::ELB | models', ['aws', 'elb']) do
       end
       tests('with vpc internal') do
         elb2 = Fog::AWS[:elb].load_balancers.create(:id => "#{elb_id}-2", :subnet_ids => [@subnet_id], :scheme => 'internal')
+        tests("should have a 'default_elb_*' security group").returns(true) { Fog::Compute[:aws].security_groups.all.any? { |sg| sg.name =~ /default_elb/ } }
         tests("scheme is internal").returns(@scheme) { elb2.scheme }
         elb2.destroy
       end

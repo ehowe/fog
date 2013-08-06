@@ -74,15 +74,19 @@ module Fog
 
           dns_name = Fog::AWS::ELB::Mock.dns_name(lb_name, @region)
 
+          region = availability_zones ? availability_zones.first.gsub(/[a-z]$/, '') : "us-east-1"
+          default_sg = Fog::Compute::AWS::Mock.data[region][@aws_access_key_id][:security_groups].values.detect { |sg| sg['groupName'] =~ /default_elb/ }
 
-          Fog::Compute::AWS::Mock.data[@region][@aws_access_key_id][:security_groups]['amazon-elb-sg'] ||= {
-            'groupDescription'   => 'amazon-elb-sg',
-            'groupName'          => 'amazon-elb-sg',
-            'groupId'            => 'amazon-elb',
-            'ownerId'            => 'amazon-elb',
-            'ipPermissionsEgree' => [],
-            'ipPermissions'      => [],
+          default_sg_name   = "default_elb_#{Fog::Mock.random_hex(6)}"
+          default_sg_name = {
+            'groupDescription'    => 'default elb security group',
+            'groupName'           => default_sg_name,
+            'groupId'             => Fog::AWS::Mock.security_group_id,
+            'ipPermissionsEgress' => [],
+            'ipPermissions'       => [],
+            'ownerId'             => owner_id,
           }
+
 
           self.data[:load_balancers][lb_name] = {
             'AvailabilityZones' => availability_zones,
@@ -115,7 +119,7 @@ module Fog
               'Proper' => []
             },
             'SourceSecurityGroup' => {
-              'GroupName' => '',
+              'GroupName' => default_sg['groupName'],
               'OwnerAlias' => ''
             }
           }
