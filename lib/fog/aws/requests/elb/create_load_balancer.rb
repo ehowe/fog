@@ -75,17 +75,27 @@ module Fog
           dns_name = Fog::AWS::ELB::Mock.dns_name(lb_name, @region)
 
           region = availability_zones ? availability_zones.first.gsub(/[a-z]$/, '') : "us-east-1"
-          default_sg = Fog::Compute::AWS::Mock.data[region][@aws_access_key_id][:security_groups].values.detect { |sg| sg['groupName'] =~ /default_elb/ }
+          supported_platforms = Fog::Compute::AWS::Mock.data[region][@aws_access_key_id][:account_attributes].detect { |h| h["attributeName"] == "supported-platforms" }["values"]
+          security_group = if supported_platforms.include?("EC2")
+                             Fog::Compute::AWS::Mock.data[region][@aws_access_key_id][:security_groups]['amazon-elb-sg']
+                           else
+                             if default_sg = Fog::Compute::AWS::Mock.data[region][@aws_access_key_id][:security_groups].values.detect { |sg| sg['groupName'] =~ /default_elb/ }
+                               default_sg
+                             else
+                               default_sg_name   = "default_elb_#{Fog::Mock.random_hex(6)}"
+                               default_sg = {
+                                 'groupDescription'    => 'default elb security group',
+                                 'groupName'           => default_sg_name,
+                                 'groupId'             => Fog::AWS::Mock.security_group_id,
+                                 'ipPermissionsEgress' => [],
+                                 'ipPermissions'       => [],
+                                 'ownerId'             => self.data[:owner_id]
+                               }
+                               Fog::Compute::AWS::Mock.data[region][@aws_access_key_id][:security_groups][default_sg_name] = default_sg
+                             end
+                             default_sg
+                           end
 
-          default_sg_name   = "default_elb_#{Fog::Mock.random_hex(6)}"
-          default_sg_name = {
-            'groupDescription'    => 'default elb security group',
-            'groupName'           => default_sg_name,
-            'groupId'             => Fog::AWS::Mock.security_group_id,
-            'ipPermissionsEgress' => [],
-            'ipPermissions'       => [],
-            'ownerId'             => owner_id,
-          }
 
 
           self.data[:load_balancers][lb_name] = {
@@ -119,7 +129,7 @@ module Fog
               'Proper' => []
             },
             'SourceSecurityGroup' => {
-              'GroupName' => default_sg['groupName'],
+              'GroupName' => security_group['groupName'],
               'OwnerAlias' => ''
             }
           }
